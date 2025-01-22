@@ -15,38 +15,60 @@ if (!apiKey || !privateKey) {
 
 // Funksjon for å hente OHLC data fra Kraken REST API
 function getOHLCData(pair, interval = 1) {
-  const options = {
-    hostname: KRKN_REST_URL,
-    path: `/0/public/OHLC?pair=${pair}&interval=${interval}`, // Standard 1-minutt intervall
-    method: 'GET'
-  };
+  return new Promise((resolve, reject) => {
+    const options = {
+      hostname: KRKN_REST_URL,
+      path: `/0/public/OHLC?pair=${pair}&interval=${interval}&since=${Math.floor(Date.now() / 1000)- (15 * 24 * 60 * 60)}`,
+      method: 'GET'
+    };
 
-  https.get(options, (res) => {
-    let data = '';
+    https.get(options, (res) => {
+      let data = '';
 
-    res.on('data', (chunk) => {
-      data += chunk;
-    });
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
 
-    res.on('end', () => {
-      try {
-        const parsedData = JSON.parse(data);
-        if (parsedData.error && parsedData.error.length > 0) {
-          throw new Error('Error from Kraken API: ' + parsedData.error.join(', '));
+      res.on('end', () => {
+        try {
+          const parsedData = JSON.parse(data);
+          if (parsedData.error && parsedData.error.length > 0) {
+            throw new Error('Error from Kraken API: ' + parsedData.error.join(', '));
+          }
+
+          const openPrices = parsedData.result[Object.keys(parsedData.result)[0]].map(item => item[1]);
+          // console.log('Open Prices:', interval, openPrices.reverse().slice(0, 50));
+          // console.log('OHLC Data:', parsedData.result);
+          resolve(openPrices);
+        } catch (error) {
+          console.error('Error parsing OHLC data:', error);
         }
-        
-        console.log('OHLC Data:', parsedData.result);
-      } catch (error) {
-        console.error('Error parsing OHLC data:', error);
-      }
+      });
+    }).on('error', (err) => {
+      console.error('Request error:', err);
     });
-  }).on('error', (err) => {
-    console.error('Request error:', err);
   });
 }
 
-// Kall til Kraken API for å hente historiske OHLC data (BTC/USD som eksempel)
-getOHLCData('BTCUSD', 15);
+function calculateEMA(arr) {
+  arr = arr.slice(-192).reverse();
+
+  const k = 2 / (arr.length + 1);
+  let ema = arr[0];
+  for (let i = 1; i < arr.length; i++) {
+    ema = (arr[i] * k) + (ema * (1 - k));
+  }
+  ema = Math.round(ema * 10000) / 10000;
+  return ema;
+}
+
+getOHLCData('BTCUSD', 15)
+  .then(openPrices => {
+    console.log('EMA:', calculateEMA(openPrices));
+  })
+  .catch(error => {
+    console.error('Error fetching OHLC data:', error);
+  });
 
 // Connect to the WebSocket API
 const ws = new WebSocket(KRKN_WS_URL);
@@ -65,7 +87,7 @@ ws.on('open', () => {
     };
     ws.send(JSON.stringify(subscriptionMessage));
 
-    console.log('Subscription message sent:', subscriptionMessage);
+    // console.log('Subscription message sent:', subscriptionMessage);
 });
 
 // Event: On receiving a message
