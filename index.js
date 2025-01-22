@@ -1,8 +1,10 @@
 const WebSocket = require('ws');
 require('dotenv').config({ path: './keys.env' });
+const https = require('https'); // For å gjøre REST API-forespørsler
 
 // Load environment variables
 const KRKN_WS_URL = 'wss://ws.kraken.com/v2'; // WebSocket API v2 endpoint
+const KRKN_REST_URL = 'api.kraken.com';
 const apiKey = process.env.API_KEY;
 const privateKey = process.env.PRIVATE_KEY;
 
@@ -10,6 +12,41 @@ if (!apiKey || !privateKey) {
   console.error('API Key or Private Key is missing in .env file!');
   process.exit(1);
 }
+
+// Funksjon for å hente OHLC data fra Kraken REST API
+function getOHLCData(pair, interval = 1) {
+  const options = {
+    hostname: KRKN_REST_URL,
+    path: `/0/public/OHLC?pair=${pair}&interval=${interval}`, // Standard 1-minutt intervall
+    method: 'GET'
+  };
+
+  https.get(options, (res) => {
+    let data = '';
+
+    res.on('data', (chunk) => {
+      data += chunk;
+    });
+
+    res.on('end', () => {
+      try {
+        const parsedData = JSON.parse(data);
+        if (parsedData.error && parsedData.error.length > 0) {
+          throw new Error('Error from Kraken API: ' + parsedData.error.join(', '));
+        }
+        
+        console.log('OHLC Data:', parsedData.result);
+      } catch (error) {
+        console.error('Error parsing OHLC data:', error);
+      }
+    });
+  }).on('error', (err) => {
+    console.error('Request error:', err);
+  });
+}
+
+// Kall til Kraken API for å hente historiske OHLC data (BTC/USD som eksempel)
+getOHLCData('BTCUSD', 15);
 
 // Connect to the WebSocket API
 const ws = new WebSocket(KRKN_WS_URL);
