@@ -13,6 +13,59 @@ if (!apiKey || !privateKey) {
   process.exit(1);
 }
 
+let symbols = {
+  "BTCUSD": {
+    "name": "Bitcoin",
+    "holding": false,
+    "EMA": undefined
+  },
+  "ETHUSD": {
+    "name": "Ethereum",
+    "holding": false,
+    "EMA": undefined
+  },
+  "XRPUSD": {
+    "name": "Ripple",
+    "holding": false,
+    "EMA": undefined
+  },
+  "SOLUSD": {
+    "name": "Solana",
+    "holding": false,
+    "EMA": undefined
+  },
+  "DOGEUSD": {
+    "name": "Dogecoin",
+    "holding": false,
+    "EMA": undefined
+  },
+  "ADAUSD": {
+    "name": "Cardano",
+    "holding": false,
+    "EMA": undefined
+  },
+  "TRXUSD": {
+    "name": "Tron",
+    "holding": false,
+    "EMA": undefined
+  },
+  "LINKUSD": {
+    "name": "Chainlink",
+    "holding": false,
+    "EMA": undefined
+  },
+  "AVAXUSD": {
+    "name": "Avalanche",
+    "holding": false,
+    "EMA": undefined
+  },
+  "DOTUSD": {
+    "name": "Polkadot",
+    "holding": false,
+    "EMA": undefined
+  },
+}
+
 // Funksjon for å hente OHLC data fra Kraken REST API
 function getOHLCData(pair, interval = 1) {
   return new Promise((resolve, reject) => {
@@ -36,8 +89,8 @@ function getOHLCData(pair, interval = 1) {
             throw new Error('Error from Kraken API: ' + parsedData.error.join(', '));
           }
 
-          const openPrices = parsedData.result[Object.keys(parsedData.result)[0]].map(item => item[1]);
-          // console.log('Open Prices:', interval, openPrices.reverse().slice(0, 50));
+          const openPrices = parsedData.result[Object.keys(parsedData.result)[0]].map(item => item[4]);
+          // console.log('Closing Prices:', interval, openPrices.reverse().slice(0, 50));
           // console.log('OHLC Data:', parsedData.result);
           resolve(openPrices);
         } catch (error) {
@@ -53,7 +106,7 @@ function getOHLCData(pair, interval = 1) {
 function calculateEMA(arr) {
   arr = arr.slice(-192).reverse();
 
-  const k = 2 / (arr.length + 1);
+  const k = 2 / (arr.length + 1); // Think kraken uses approximately  0.125 for ema calculations?
   let ema = arr[0];
   for (let i = 1; i < arr.length; i++) {
     ema = (arr[i] * k) + (ema * (1 - k));
@@ -62,14 +115,33 @@ function calculateEMA(arr) {
   return ema;
 }
 
-getOHLCData('BTCUSD', 15)
-  .then(openPrices => {
-    console.log('EMA:', calculateEMA(openPrices));
-  })
-  .catch(error => {
-    console.error('Error fetching OHLC data:', error);
-  });
+function updateAllEMAs() {
+  const keys = Object.keys(symbols);
+  const promises = [];
 
+  for (let i = 0; i < keys.length; i++) {
+    promises.push(
+      getOHLCData(keys[i], 15)
+      .then(openPrices => {
+        symbols[keys[i]].EMA = calculateEMA(openPrices);
+      })
+      .catch(error => {
+        console.error('Error fetching OHLC data:', error);
+      })
+    );
+  }
+  
+   // Wait for all promises to resolve before logging symbols
+  Promise.all(promises)
+    .then(() => {
+      console.log(symbols);
+    })
+    .catch(err => {
+      console.error('Error in Promise.all:', err);
+    });
+}
+
+updateAllEMAs()
 // Connect to the WebSocket API
 const ws = new WebSocket(KRKN_WS_URL);
 
