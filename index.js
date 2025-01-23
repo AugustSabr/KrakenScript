@@ -144,76 +144,84 @@ function updateAllEMAs() {
 
 updateAllEMAs()
 
-function isAskAboveEMA(ticker, ask) {
+function evaluateTradeWithEMA(ticker, ask) {
   const symbol = ticker.replace(/\//g, '');
-  if (symbols[symbol].EMA !== undefined && ask > symbols[symbol].EMA) {
-    writeToLogFile(`${symbol} is above EMA: ${ask} > ${symbols[symbol].EMA}`);
-    return true;
-  } else {
-    return false;
+  if (symbols[symbol].EMA !== undefined) {
+    if (symbols[symbol].holding){
+      if (ask < symbols[symbol].EMA){
+        writeToLogFile(`sell: ${symbol} is below EMA ${ask} < ${symbols[symbol].EMA}`);
+      }
+    }else{
+      if (ask > symbols[symbol].EMA){
+        writeToLogFile(`buy: ${symbol} is above EMA ${ask} < ${symbols[symbol].EMA}`);
+        }
+    }
   }
 }
 
 // Connect to the WebSocket API
-const ws = new WebSocket(KRKN_WS_URL);
+function connectWebSocket() {
+  // Connect to the WebSocket API
+  const ws = new WebSocket(KRKN_WS_URL);
 
-// Event: On connection open
-ws.on('open', () => {
-    writeToLogFile('Connected to WebSocket API v2');
-    let symbolsKeys = Object.keys(symbols);
+  // Event: On connection open
+  ws.on('open', () => {
+      writeToLogFile('Connected to WebSocket API v2');
+      let symbolsKeys = Object.keys(symbols);
 
-    const subscriptionMessage = {
-      method: 'subscribe',
-      params: {
-          channel: 'ticker',
-          symbol: symbolsKeys.map(symbolsKeys => symbolsKeys.slice(0, -3) + '/' + symbolsKeys.slice(-3)), //adds a "/"; BTCUSD => BTC/USD
-          event_trigger: 'trades'
+      const subscriptionMessage = {
+        method: 'subscribe',
+        params: {
+            channel: 'ticker',
+            symbol: symbolsKeys.map(symbolsKeys => symbolsKeys.slice(0, -3) + '/' + symbolsKeys.slice(-3)), //adds a "/"; BTCUSD => BTC/USD
+            event_trigger: 'trades'
+        }
+      };
+      ws.send(JSON.stringify(subscriptionMessage));
+
+      writeToLogFile(`Subscription message sent: ${JSON.stringify(subscriptionMessage)}`);
+  });
+
+  // Event: On receiving a message
+  ws.on('message', (data) => {
+      try {
+          const parsedData = JSON.parse(data);
+          // console.log(`Received message: ${parsedData}`);
+
+
+          if (parsedData.error) {
+            throw new Error('Message contains an error: ' + parsedData.error);
+          }
+
+          // If the message doesn't match condition, discard it
+          if (parsedData.channel !== 'ticker' || !parsedData.data[0].bid || !parsedData.data[0].ask) {
+            return;
+          }
+          // console.log('Update received:', parsedData.data[0].symbol, parsedData.data[0].bid, parsedData.data[0].ask);
+          evaluateTradeWithEMA(parsedData.data[0].symbol, parsedData.data[0].ask);
+      } catch (error) {
+          console.error('Error on receiving a message:\n', error);
       }
-    };
-    ws.send(JSON.stringify(subscriptionMessage));
+  });
 
-    writeToLogFile(`Subscription message sent: ${JSON.stringify(subscriptionMessage)}`);
-});
+  // Event: On connection close
+  ws.on('close', (code, reason) => {
+      writeToLogFile(`Connection closed: Code=${code}, Reason=${reason}`);
+  });
 
-// Event: On receiving a message
-ws.on('message', (data) => {
-    try {
-        const parsedData = JSON.parse(data);
-        // console.log(`Received message: ${parsedData}`);
+  // Event: On error
+  ws.on('error', (error) => {
+      console.error('WebSocket error:', error);
+  });
 
-
-        if (parsedData.error) {
-          throw new Error('Message contains an error: ' + parsedData.error);
-        }
-
-        // If the message doesn't match condition, discard it
-        if (parsedData.channel !== 'ticker' || !parsedData.data[0].bid || !parsedData.data[0].ask) {
-          return;
-        }
-        // console.log('Update received:', parsedData.data[0].symbol, parsedData.data[0].bid, parsedData.data[0].ask);
-        isAskAboveEMA(parsedData.data[0].symbol, parsedData.data[0].ask);
-    } catch (error) {
-        console.error('Error on receiving a message:\n', error);
-    }
-});
-
-// Event: On connection close
-ws.on('close', (code, reason) => {
-    writeToLogFile(`Connection closed: Code=${code}, Reason=${reason}`);
-});
-
-// Event: On error
-ws.on('error', (error) => {
-    console.error('WebSocket error:', error);
-});
-
-// Closing connection before exiting, Ctrl+C 
-process.on('SIGINT', () => {
-  writeToLogFile('Closing WebSocket connection...');
-  console.log('Closing WebSocket connection...');
-  ws.close();
-  process.exit(0);
-});
+  // Closing connection before exiting, Ctrl+C 
+  process.on('SIGINT', () => {
+    writeToLogFile('Closing WebSocket connection...');
+    console.log('Closing WebSocket connection...');
+    ws.close();
+    process.exit(0);
+  });
+}
 
 function writeToLogFile(message) {
   const logMessage = `[${new Date().toISOString()}] ${String(message)}\n`;
@@ -233,4 +241,13 @@ function emptyLogFile (){
     }
   });
 }
-emptyLogFile();
+
+function start() {
+  emptyLogFile();
+
+  updateAllEMAs();
+  setInterval(updateAllEMAs, 5*60*1000) // Call every 5 minutes (3000 000 milliseconds )
+  connectWebSocket();
+  writeToLogFile('Script initialized and running...');
+}
+start();
