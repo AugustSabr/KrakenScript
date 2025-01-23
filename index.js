@@ -1,6 +1,7 @@
 const WebSocket = require('ws');
 require('dotenv').config({ path: './keys.env' });
 const https = require('https'); // For å gjøre REST API-forespørsler
+const fs = require('fs');
 
 // Load environment variables
 const KRKN_WS_URL = 'wss://ws.kraken.com/v2'; // WebSocket API v2 endpoint
@@ -90,7 +91,7 @@ function getOHLCData(pair, interval = 1) {
           }
 
           const openPrices = parsedData.result[Object.keys(parsedData.result)[0]].map(item => item[4]);
-          // console.log('Closing Prices:', interval, openPrices.reverse().slice(0, 50));
+          // console.log(pair, 'Closing Prices:', interval, openPrices.reverse().slice(0, 50));
           // console.log('OHLC Data:', parsedData.result);
           resolve(openPrices);
         } catch (error) {
@@ -104,7 +105,7 @@ function getOHLCData(pair, interval = 1) {
 }
 
 function calculateEMA(arr) {
-  arr = arr.slice(-192).reverse();
+  arr = arr.slice(-576).reverse(); //576 5-minute datapoints is 3 days
 
   const k = 2 / (arr.length + 1); // Think kraken uses approximately  0.125 for ema calculations?
   let ema = arr[0];
@@ -121,7 +122,7 @@ function updateAllEMAs() {
 
   for (let i = 0; i < keys.length; i++) {
     promises.push(
-      getOHLCData(keys[i], 15)
+      getOHLCData(keys[i], 5) // 5-minute datapoints
       .then(openPrices => {
         symbols[keys[i]].EMA = calculateEMA(openPrices);
       })
@@ -134,7 +135,7 @@ function updateAllEMAs() {
    // Wait for all promises to resolve before logging symbols
   Promise.all(promises)
     .then(() => {
-      console.log(symbols);
+      // console.log(symbols);
     })
     .catch(err => {
       console.error('Error in Promise.all:', err);
@@ -146,7 +147,7 @@ updateAllEMAs()
 function isAskAboveEMA(ticker, ask) {
   const symbol = ticker.replace(/\//g, '');
   if (symbols[symbol].EMA !== undefined && ask > symbols[symbol].EMA) {
-    console.log(symbol, "is above EMA;", ask, symbols[symbol].EMA);
+    writeToLogFile(`${symbol} is above EMA: ${ask} > ${symbols[symbol].EMA}`);
     return true;
   } else {
     return false;
@@ -158,7 +159,7 @@ const ws = new WebSocket(KRKN_WS_URL);
 
 // Event: On connection open
 ws.on('open', () => {
-    console.log('Connected to WebSocket API v2');
+    writeToLogFile('Connected to WebSocket API v2');
     let symbolsKeys = Object.keys(symbols);
 
     const subscriptionMessage = {
@@ -171,14 +172,15 @@ ws.on('open', () => {
     };
     ws.send(JSON.stringify(subscriptionMessage));
 
-    // console.log('Subscription message sent:', subscriptionMessage);
+    writeToLogFile(`Subscription message sent: ${JSON.stringify(subscriptionMessage)}`);
 });
 
 // Event: On receiving a message
 ws.on('message', (data) => {
     try {
         const parsedData = JSON.parse(data);
-        // console.log('Received message:', parsedData);
+        // console.log(`Received message: ${parsedData}`);
+
 
         if (parsedData.error) {
           throw new Error('Message contains an error: ' + parsedData.error);
@@ -197,7 +199,7 @@ ws.on('message', (data) => {
 
 // Event: On connection close
 ws.on('close', (code, reason) => {
-    console.log(`Connection closed: Code=${code}, Reason=${reason}`);
+    writeToLogFile(`Connection closed: Code=${code}, Reason=${reason}`);
 });
 
 // Event: On error
@@ -207,7 +209,28 @@ ws.on('error', (error) => {
 
 // Closing connection before exiting, Ctrl+C 
 process.on('SIGINT', () => {
+  writeToLogFile('Closing WebSocket connection...');
   console.log('Closing WebSocket connection...');
   ws.close();
   process.exit(0);
 });
+
+function writeToLogFile(message) {
+  const logMessage = `[${new Date().toISOString()}] ${String(message)}\n`;
+  fs.appendFile('krakenScript.log', logMessage, (err) => {
+    if (err) {
+      console.error('Error writing to log file:', err);
+    }
+  });
+}
+
+function emptyLogFile (){
+  fs.writeFile('krakenScript.log', '', (err) => {
+    if (err) {
+      console.error('Error emptying the log file:', err);
+    } else {
+      writeToLogFile('Log file emptied successfully.');
+    }
+  });
+}
+emptyLogFile();
