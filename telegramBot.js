@@ -2,9 +2,12 @@ const TelegramBot = require('node-telegram-bot-api');
 require('dotenv').config({ path: './keys.env' });
 
 const token = process.env.TLGRM_BOT_TOKEN;
-const MY_CHAT_ID = process.env.MY_CHAT_ID;
-const TLGRM_MSG_ID = process.env.TLGRM_BOT_TOKEN;
+const TLGRM_MSG_ID = process.env.TLGRM_MSG_ID;
 const bot = new TelegramBot(token, { polling: true });
+
+
+module.exports = {messageMe, messageSubscribers, morningUpdate};
+
 
 bot.on('message', (msg) => {
   const chatId = msg.chat.id;
@@ -12,7 +15,7 @@ bot.on('message', (msg) => {
 });
 
 function messageMe(msg) {
-  bot.sendMessage(MY_CHAT_ID, msg);
+  bot.sendMessage(TLGRM_MSG_ID, msg);
 }
 
 // bot.onText(/\/subscribe/, function(msg) {
@@ -60,36 +63,8 @@ function morningUpdate() {
   messageSubscribers(msg)
 }
 
-// function objToJsonFile(jsonString, path) {
-//   return new Promise(function(resolve, reject) {
-//     fs.promises.writeFile(path, jsonString)
-//     .then(function() {
-//       resolve();
-//     })
-//     .catch(function(err) {
-//       console.error('Error writing file:', err);
-//       messageMe('Error writing file')
-//       reject(err);
-//     });
-//   });
-// }
-
-// function jsonFileToObj(path) {
-//   return new Promise(function(resolve, reject) {
-//     fs.promises.readFile(path, 'utf8')
-//       .then(function(data) {
-//         const obj = JSON.parse(data);
-//         resolve(obj);
-//       })
-//       .catch(function(err) {
-//         console.error('Error reading file:', err);
-//         reject(err);
-//       });
-//   });
-// }
-
 bot.onText(/\/kill/, function(msg) {
-  if (msg.chat.id === MY_CHAT_ID) {
+  if (msg.chat.id === TLGRM_MSG_ID) {
     bot.sendMessage(msg.chat.id, 'killing script');    
     process.exit(0);
   } else {

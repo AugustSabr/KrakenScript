@@ -1,0 +1,63 @@
+
+{
+  "BTCUSD": {
+    "name": "Bitcoin",
+    "holding": false,
+    "EMA": null,
+    "24h change": null
+  },
+  "ETHUSD": {
+    "name": "Ethereum",
+    "holding": false,
+    "EMA": null,
+    "24h change": null
+  },
+  "XRPUSD": {
+    "name": "Ripple",
+    "holding": false,
+    "EMA": null,
+    "24h change": null
+  },
+  "SOLUSD": {
+    "name": "Solana",
+    "holding": false,
+    "EMA": null,
+    "24h change": null
+  },
+  "DOGEUSD": {
+    "name": "Dogecoin",
+    "holding": false,
+    "EMA": null,
+    "24h change": null
+  },
+  "ADAUSD": {
+    "name": "Cardano",
+    "holding": false,
+    "EMA": null,
+    "24h change": null
+  },
+  "TRXUSD": {
+    "name": "Tron",
+    "holding": false,
+    "EMA": null,
+    "24h change": null
+  },
+  "LINKUSD": {
+    "name": "Chainlink",
+    "holding": false,
+    "EMA": null,
+    "24h change": null
+  },
+  "AVAXUSD": {
+    "name": "Avalanche",
+    "holding": false,
+    "EMA": null,
+    "24h change": null
+  },
+  "DOTUSD": {
+    "name": "Polkadot",
+    "holding": false,
+    "EMA": null,
+    "24h change": null
+  }
+}

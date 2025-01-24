@@ -4,6 +4,7 @@ const https = require('https'); // For å gjøre REST API-forespørsler
 const fs = require('fs');
 
 const telegramBot = require('./telegramBot');
+const telegramBot = require('./fileManager');
 
 // Load environment variables
 const KRKN_WS_URL = 'wss://ws.kraken.com/v2'; // WebSocket API v2 endpoint
@@ -14,59 +15,6 @@ const KRKN_PRIVATE_KEY = process.env.KRKN_PRIVATE_KEY;
 if (!KRKN_API_KEY || !KRKN_PRIVATE_KEY) {
   console.error('API Key or Private Key is missing in .env file!');
   process.exit(1);
-}
-
-let symbols = {
-  "BTCUSD": {
-    "name": "Bitcoin",
-    "holding": false,
-    "EMA": undefined
-  },
-  "ETHUSD": {
-    "name": "Ethereum",
-    "holding": false,
-    "EMA": undefined
-  },
-  "XRPUSD": {
-    "name": "Ripple",
-    "holding": false,
-    "EMA": undefined
-  },
-  "SOLUSD": {
-    "name": "Solana",
-    "holding": false,
-    "EMA": undefined
-  },
-  "DOGEUSD": {
-    "name": "Dogecoin",
-    "holding": false,
-    "EMA": undefined
-  },
-  "ADAUSD": {
-    "name": "Cardano",
-    "holding": false,
-    "EMA": undefined
-  },
-  "TRXUSD": {
-    "name": "Tron",
-    "holding": false,
-    "EMA": undefined
-  },
-  "LINKUSD": {
-    "name": "Chainlink",
-    "holding": false,
-    "EMA": undefined
-  },
-  "AVAXUSD": {
-    "name": "Avalanche",
-    "holding": false,
-    "EMA": undefined
-  },
-  "DOTUSD": {
-    "name": "Polkadot",
-    "holding": false,
-    "EMA": undefined
-  }
 }
 
 // Funksjon for å hente OHLC data fra Kraken REST API
@@ -146,8 +94,7 @@ function updateAllEMAs() {
 
 updateAllEMAs()
 
-function evaluateTradeWithEMA(ticker, ask) {
-  const symbol = ticker.replace(/\//g, '');
+function evaluateTradeWithEMA(symbol, ask) {
   if (symbols[symbol].EMA !== undefined) {
     if (symbols[symbol].holding){
       if (ask < symbols[symbol].EMA){
@@ -196,11 +143,14 @@ function connectWebSocket() {
           }
 
           // If the message doesn't match condition, discard it
-          if (parsedData.channel !== 'ticker' || !parsedData.data[0].bid || !parsedData.data[0].ask) {
+          if (parsedData.channel !== 'ticker') {
             return;
           }
-          // console.log('Update received:', parsedData.data[0].symbol, parsedData.data[0].bid, parsedData.data[0].ask);
-          evaluateTradeWithEMA(parsedData.data[0].symbol, parsedData.data[0].ask);
+          const symbol = parsedData.data[0].symbol.replace(/\//g, '');
+          
+          // console.log('Update received:', symbol, parsedData.data[0].bid, parsedData.data[0].ask, symbol, parsedData.data[0].change_pct);
+          symbols[symbol]["24h change"] = parsedData.data[0].change_pct
+          evaluateTradeWithEMA(symbol, parsedData.data[0].ask);
       } catch (error) {
           console.error('Error on receiving a message:\n', error);
       }
@@ -250,7 +200,7 @@ function start() {
 
   // updateAllEMAs();
   // setInterval(updateAllEMAs, 5*60*1000) // Call every 5 minutes (3000 000 milliseconds )
-  // connectWebSocket();
+  connectWebSocket();
   writeToLogFile('Script initialized and running...');
 
   console.log('Currently testing the telegram bot');
