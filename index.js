@@ -3,13 +3,15 @@ require('dotenv').config({ path: './keys.env' });
 const https = require('https'); // For å gjøre REST API-forespørsler
 const fs = require('fs');
 
+const telegramBot = require('./telegramBot');
+
 // Load environment variables
 const KRKN_WS_URL = 'wss://ws.kraken.com/v2'; // WebSocket API v2 endpoint
 const KRKN_REST_URL = 'api.kraken.com';
-const apiKey = process.env.API_KEY;
-const privateKey = process.env.PRIVATE_KEY;
+const KRKN_API_KEY = process.env.KRKN_API_KEY;
+const KRKN_PRIVATE_KEY = process.env.KRKN_PRIVATE_KEY;
 
-if (!apiKey || !privateKey) {
+if (!KRKN_API_KEY || !KRKN_PRIVATE_KEY) {
   console.error('API Key or Private Key is missing in .env file!');
   process.exit(1);
 }
@@ -64,7 +66,7 @@ let symbols = {
     "name": "Polkadot",
     "holding": false,
     "EMA": undefined
-  },
+  }
 }
 
 // Funksjon for å hente OHLC data fra Kraken REST API
@@ -243,11 +245,14 @@ function emptyLogFile (){
 }
 
 function start() {
+  telegramBot.messageMe('Script initialized and running...');
   emptyLogFile();
 
-  updateAllEMAs();
-  setInterval(updateAllEMAs, 5*60*1000) // Call every 5 minutes (3000 000 milliseconds )
-  connectWebSocket();
+  // updateAllEMAs();
+  // setInterval(updateAllEMAs, 5*60*1000) // Call every 5 minutes (3000 000 milliseconds )
+  // connectWebSocket();
   writeToLogFile('Script initialized and running...');
+
+  console.log('Currently testing the telegram bot');
 }
 start();
