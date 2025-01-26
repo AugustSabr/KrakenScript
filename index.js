@@ -8,6 +8,21 @@ const { WebSocketManager } = require('./APIs/KRKN_WS');
 const wsManager = new WebSocketManager();
 let symbols;
 
+function trade(symbol, ask, action) {
+  if (action == 'buy') {
+    //comming soon
+    telegramBot.messageSubscribers(`sending a buy-order for ${symbol.name} at ${ask}$`)
+    fileManager.writeToLogFile(`buy: ${symbol} is above EMA ${ask} < ${symbols[symbol].EMA}`);
+  } else if (action == 'sell'){
+    //comming soon
+    telegramBot.messageSubscribers(`sending a sell-order for ${symbol.name} at ${ask}$`)
+    fileManager.writeToLogFile(`sell: ${symbol} is below EMA ${ask} < ${symbols[symbol].EMA}`);
+  } else {
+    fileManager.writeToLogFile(`Unrecognized action in trade() function: ${action}`);
+    telegramBot.messageMe('something wrong in the trade() function')
+  }
+}
+
 function calculateEMA(arr) {
   arr = arr.slice(-576).reverse(); //576 5-minute datapoints is 3 days
 
@@ -50,11 +65,11 @@ function evaluateTradeWithEMA(symbol, ask) {
   if (symbols[symbol].EMA !== undefined) {
     if (symbols[symbol].holding){
       if (ask < symbols[symbol].EMA){
-        fileManager.writeToLogFile(`sell: ${symbol} is below EMA ${ask} < ${symbols[symbol].EMA}`);
+        trade(symbols[symbol], ask, 'sell')
       }
     }else{
       if (ask > symbols[symbol].EMA){
-        fileManager.writeToLogFile(`buy: ${symbol} is above EMA ${ask} < ${symbols[symbol].EMA}`);
+        trade(symbols[symbol], ask, 'buy')
         }
     }
   }
@@ -77,17 +92,17 @@ function start() {
   })
   .then(function () {
     fileManager.emptyLogFile();
-    KRKN_REST.getAccountBalance()
-    .then(function({ balance }) {
-      console.log('balance: ', balance);
-    })
+    // KRKN_REST.getAccountBalance()
+    // .then(function({ balance }) {
+      // console.log(`balance: ${JSON.stringify(balance)}`);
+    // })
     updateAllEMAs();
-    // setInterval(updateAllEMAs, 5*60*1000) // Call every 5 minutes (3000 000 milliseconds )
+    setInterval(updateAllEMAs, 5*60*1000) // Call every 5 minutes (3000 000 milliseconds )
     wsManager.connectWebSocket(symbols);
   })
   .then(function () {
-    // telegramBot.messageSubscribers('Script initialized and running...')
-    // fileManager.writeToLogFile('Script initialized and running...');
+    telegramBot.messageSubscribers('Script initialized and running...')
+    fileManager.writeToLogFile('Script initialized and running...');
   })
   .catch(function(err) {
     console.error('Error loading objects:', err);

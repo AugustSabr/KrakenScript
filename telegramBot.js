@@ -1,25 +1,42 @@
 const TelegramBot = require('node-telegram-bot-api');
 require('dotenv').config({ path: './keys.env' });
+const KRKN_REST = require('./APIs/KRKN_REST');
 
 
 const token = process.env.TLGRM_BOT_TOKEN;
 const TLGRM_MSG_ID = process.env.TLGRM_MSG_ID;
 const bot = new TelegramBot(token, { polling: true });
 let subscribersObj;
+const messageAgeLimit = 5; // in seconds
 
 
 module.exports = {set subscribersObj(value) {subscribersObj = value;}, messageMe, messageSubscribers, morningUpdate};
 
 
+function isMessageTooOld(msg) {
+  const currentTime = Date.now() / 1000;
+  const messageTime = msg.date;
+
+  if ((currentTime - messageTime) > messageAgeLimit) return true;
+  return false;
+}
+
 function messageMe(msg) {
   bot.sendMessage(TLGRM_MSG_ID, msg);
 }
 
+bot.onText(/\/start/, function(msg) {
+  if (isMessageTooOld(msg)) return;  
+  bot.sendMessage(msg.chat.id, 'This is a bot that helps you buy crypto. Use /subscribe to get daily updates');
+});
+
 bot.onText(/\/subscribe/, function(msg) {
+  if (isMessageTooOld(msg)) return;
   bot.sendMessage(msg.chat.id, manageSubscriber(msg.chat.id, 'add'));
 });
 
 bot.onText(/\/unsubscribe/, function(msg) {
+  if (isMessageTooOld(msg)) return;
   bot.sendMessage(msg.chat.id, manageSubscriber(msg.chat.id, 'remove'));
 });
 
@@ -58,13 +75,26 @@ function morningUpdate() {
   messageSubscribers(msg)
 }
 
-bot.onText(/\/kill/, function(msg) {
+bot.onText(/\/balance/, function(msg) {
+  if (isMessageTooOld(msg)) return;
   if (msg.chat.id == TLGRM_MSG_ID) {
-    bot.sendMessage(msg.chat.id, 'killing script')
+    KRKN_REST.getAccountBalance()
+    .then(function({ balance }) {
+      bot.sendMessage(TLGRM_MSG_ID, `balance: ${JSON.stringify(balance)}`);
+    })
+  } else {
+    bot.sendMessage(msg.chat.id, "you don't have permission to execute this command");
+  }
+});
+
+bot.onText(/\/kill/, function(msg) {
+  if (isMessageTooOld(msg)) return;  
+  if (msg.chat.id == TLGRM_MSG_ID) {
+    bot.sendMessage(TLGRM_MSG_ID, 'killing script')
     .then(function() {
       process.exit(0);
     });
   } else {
-    bot.sendMessage(msg.chat.id, "you don't have permission to kill the script");
+    bot.sendMessage(msg.chat.id, "you don't have permission to execute this command");
   }
 });
