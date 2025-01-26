@@ -1,7 +1,7 @@
 const fs = require('fs');
 
 
-module.exports = {saveObjects, loadObjects};
+module.exports = {saveObjects, loadObjects, writeToLogFile, emptyLogFile};
 
 
 function saveObjects(symbolsObj, subscribersObj) {
@@ -40,4 +40,23 @@ function jsonFileToObj(path) {
       console.error('Error reading file:', err);
       throw err;  // Reject with the error
     });
+}
+
+function writeToLogFile(message) {
+  const logMessage = `[${new Date().toISOString()}] ${String(message)}\n`;
+  fs.appendFile('krakenScript.log', logMessage, (err) => {
+    if (err) {
+      console.error('Error writing to log file:', err);
+    }
+  });
+}
+
+function emptyLogFile (){
+  fs.writeFile('krakenScript.log', '', (err) => {
+    if (err) {
+      console.error('Error emptying the log file:', err);
+    } else {
+      writeToLogFile('Log file emptied successfully.');
+    }
+  });
 }
