@@ -15,6 +15,7 @@ class WebSocketManager extends EventEmitter {
 // Connect to the WebSocket API
   connectWebSocket(symbols) {
     this.symbols = symbols;
+    
     this.ws = new WebSocket(KRKN_WS_URL);
 
     // Event: On connection open
@@ -26,7 +27,7 @@ class WebSocketManager extends EventEmitter {
           method: 'subscribe',
           params: {
               channel: 'ticker',
-              symbol: symbolsKeys.map(symbolsKeys => symbolsKeys.slice(0, -3) + '/' + symbolsKeys.slice(-3)), //adds a "/"; BTCUSD => BTC/USD
+              symbol: symbolsKeys.map(symbolsKeys => symbolsKeys + '/USD'), // BTC => BTC/USD
               event_trigger: 'trades'
           }
         };
@@ -48,8 +49,9 @@ class WebSocketManager extends EventEmitter {
             // If the message doesn't match condition, discard it
             if (parsedData.channel !== 'ticker') {
               return;
-            }
-            const symbol = parsedData.data[0].symbol.replace(/\//g, '');
+            }            
+            const symbol = parsedData.data[0].symbol.split('/')[0];
+            
             this.symbols[symbol]["24h change"] = parsedData.data[0].change_pct;
 
             this.emit('update', {symbol, ask: parsedData.data[0].ask, change_pct: parsedData.data[0].change_pct});

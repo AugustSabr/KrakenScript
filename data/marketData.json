@@ -1,61 +1,70 @@
-
 {
-  "BTCUSD": {
+  "BTC": {
     "name": "Bitcoin",
+    "currency code": "XXBT",
     "holding": false,
     "EMA": null,
     "24h change": null
   },
-  "ETHUSD": {
+  "ETH": {
     "name": "Ethereum",
+    "currency code": "XETH",
     "holding": false,
     "EMA": null,
     "24h change": null
   },
-  "XRPUSD": {
+  "XRP": {
     "name": "Ripple",
+    "currency code": "XXRP",
     "holding": false,
     "EMA": null,
     "24h change": null
   },
-  "SOLUSD": {
+  "SOL": {
     "name": "Solana",
+    "currency code": "SOL",
     "holding": false,
     "EMA": null,
     "24h change": null
   },
-  "DOGEUSD": {
+  "DOGE": {
     "name": "Dogecoin",
+    "currency code": "XXDG",
     "holding": false,
     "EMA": null,
     "24h change": null
   },
-  "ADAUSD": {
+  "ADA": {
     "name": "Cardano",
+    "currency code": "ADA",
     "holding": false,
     "EMA": null,
     "24h change": null
   },
-  "TRXUSD": {
+  "TRX": {
     "name": "Tron",
+    "currency code": "TRX",
     "holding": false,
     "EMA": null,
     "24h change": null
   },
-  "LINKUSD": {
+  "LINK": {
     "name": "Chainlink",
+    "currency code": "LINK",
     "holding": false,
     "EMA": null,
     "24h change": null
   },
-  "AVAXUSD": {
+  "AVAX": {
     "name": "Avalanche",
+    "currency code": "AVAX",
     "holding": false,
     "EMA": null,
     "24h change": null
   },
-  "DOTUSD": {
+  "DOT": {
     "name": "Polkadot",
+    "currency code": "DOT",
     "holding": false,
     "EMA": null,
     "24h change": null

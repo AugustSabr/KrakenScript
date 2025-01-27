@@ -13,15 +13,20 @@ if (!KRKN_API_KEY || !KRKN_API_SECRET) {
   process.exit(1);
 }
 
+let nonce = Date.now() * 1000;  // Start with a large number
+const getNonce = () => {
+  return nonce++; // Increment the nonce with each request
+};
+
 module.exports = {getOHLCData, getAccountBalance}
 
 // Funksjon for å hente OHLC data fra Kraken REST API
-function getOHLCData(pair, interval = 1) {
+function getOHLCData(symbol, interval = 1) {
   return new Promise((resolve, reject) => {
     const options = {
       method: 'GET',
       hostname: KRKN_REST_URL,
-      path: `/0/public/OHLC?pair=${pair}&interval=${interval}&since=${Math.floor(Date.now() / 1000)- (15 * 24 * 60 * 60)}`
+      path: `/0/public/OHLC?pair=${symbol + '/USD'}&interval=${interval}&since=${Math.floor(Date.now() / 1000)- (15 * 24 * 60 * 60)}`
     };
 
     https.get(options, (res) => {
@@ -39,7 +44,7 @@ function getOHLCData(pair, interval = 1) {
           }
 
           const openPrices = parsedData.result[Object.keys(parsedData.result)[0]].map(item => item[4]);
-          // console.log(pair, 'Closing Prices:', interval, openPrices.reverse().slice(0, 50));
+          // console.log(symbol, 'Closing Prices:', interval, openPrices.reverse().slice(0, 50));
           // console.log('OHLC Data:', parsedData.result);
           resolve(openPrices);
         } catch (error) {
@@ -54,7 +59,10 @@ function getOHLCData(pair, interval = 1) {
 
 function getAccountBalance() {
   return new Promise((resolve, reject) => {
-    const nonce = Date.now() * 1000;
+    const nonce = getNonce();
+    console.log(nonce);
+    
+    
     const postData = JSON.stringify({ nonce });
 
     // Generate the signature
@@ -90,6 +98,72 @@ function getAccountBalance() {
           } else {
             const balance = json.result;
             resolve({balance});
+          }
+        } catch (err) {
+          console.error('JSON Parse Error:', err);
+          reject(err);
+        }
+      });
+
+      res.on('error', (error) => {
+        console.error('Request Error:', error);
+        reject(error);
+      });
+    });
+
+    req.write(postData);
+    req.end();
+  });
+}
+
+function AddOrder(currencyCode, action, price, volume, id) {
+  return new Promise((resolve, reject) => {
+
+    
+    const nonce = getNonce();
+
+    let postData = JSON.stringify({
+      "nonce": nonce,
+      "ordertype": "limit",
+      "type": action,
+      "volume": volume,
+      "pair": currencyCode,
+      "price": price,
+      "cl_ord_id": id
+    });
+
+    // Generate the signature
+    const urlPath = '/0/private/AddOrder';
+    const signature = generateSignature(urlPath, postData, nonce);
+
+    const options = {
+      method: 'POST',
+      hostname: 'api.kraken.com',
+      path: urlPath,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'API-Key': KRKN_API_KEY,
+        'API-Sign': signature
+      },
+    };
+
+    const req = https.request(options, (res) => {
+      let chunks = [];
+
+      res.on('data', (chunk) => {
+        chunks.push(chunk);
+      });
+
+      res.on('end', () => {
+        const body = Buffer.concat(chunks).toString();
+        try {
+          const json = JSON.parse(body);
+          if (json.error && json.error.length) {
+            console.error('Error:', json.error);
+            reject(json.error);
+          } else {
+            resolve(json.result);
           }
         } catch (err) {
           console.error('JSON Parse Error:', err);
