@@ -78,14 +78,12 @@ class WebSocketManager extends EventEmitter {
     this.ws.on('error', (error) => {
         console.error('WebSocket error:', error);
     });
+  }
 
-    // Closing connection before exiting, Ctrl+C 
-    process.on('SIGINT', () => {
-      fileManager.writeToLogFile('Closing WebSocket connection...');
-      console.log('Closing WebSocket connection...');
-      this.ws.close();
-      process.exit(0);
-    });
+  disconnect() {
+    fileManager.writeToLogFile('Closing WebSocket connection...');
+    console.log('Closing WebSocket connection...');
+    this.ws.close();
   }
 }
 

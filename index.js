@@ -15,7 +15,7 @@ function getAvailableUSD() {
       const availableUSD = parseFloat(balance.ZUSD);
       let reserved = 0;
       for (let key in symbols) {
-        if (symbols[key].holding === false) {
+        if (symbols[key].holding < 0.000001) {
           reserved++;
         }
       }
@@ -28,37 +28,47 @@ function getAvailableUSD() {
 }
 
 
-function trade(symbol, ask, action) {
+function trade(symbol, ask, action) {  
+  if (symbols[symbol]['trade pending']) {
+    console.log(`Trade for ${symbol} is locked. Skipping...`);
+    return;
+  }
+  symbols[symbol]['trade pending'] = true;
+  const cl_ord_id = uuidv4(); // if i later want to add the possibility to track the order
+
   if (action == 'buy') {
-    // KRKN_REST.AddOrder()
-    const cl_ord_id = uuidv4();
     getAvailableUSD()
     .then(function(availableUSD) {
-      // console.log("Available USD per reserved item: ", availableUSD);
       console.log(symbols[symbol]['currency code'], action, ask, availableUSD/ask, cl_ord_id);
-      // AddOrder(symbols[symbol]['currency code'], action, ask, availableUSD/ask, cl_ord_id);
+      KRKN_REST.makeRequestWithRetry(KRKN_REST.AddOrder(symbol, action, ask, availableUSD/ask, cl_ord_id))
+      // KRKN_REST.makeRequestWithRetry(KRKN_REST.AddOrder(symbol, action, ask, 2, cl_ord_id))
+      .then(function(result) {
+        console.log(result);
+        telegramBot.messageSubscribers(`bought ${symbol} for ${ask}$`)
+        fileManager.writeToLogFile(`bought ${symbol} for ${ask}$`)
+        updateBalance()
+      });
     });
-    
-    // const cl_ord_id = uuidv4();
-    // console.log(symbols[symbol]['currency code'], action, ask, cl_ord_id);
-    // console.log(symbol);
-    
-    // console.log(symbols[symbol]['currency code'], action, ask, cl_ord_id);
-    
-    telegramBot.messageSubscribers(`sending a buy-order for ${symbol} at ${ask}$`)
-    fileManager.writeToLogFile(`buy: ${symbol} is above EMA ${ask} < ${symbols[symbol].EMA}`);
   } else if (action == 'sell'){
-    //comming soon
-    telegramBot.messageSubscribers(`sending a sell-order for ${symbol.name} at ${ask}$`)
-    fileManager.writeToLogFile(`sell: ${symbol} is below EMA ${ask} < ${symbols[symbol].EMA}`);
-  } else {
+    KRKN_REST.makeRequestWithRetry(KRKN_REST.AddOrder(symbol, action, ask, symbols[symbol].holding, cl_ord_id))
+      .then(function(result) {
+        console.log(result);
+        telegramBot.messageSubscribers(`sold ${symbol} for ${ask}$`)
+        fileManager.writeToLogFile(`sold ${symbol} for ${ask}$`)
+        updateBalance()
+
+      });
+} else {
     fileManager.writeToLogFile(`Unrecognized action in trade() function: ${action}`);
     telegramBot.messageMe('something wrong in the trade() function')
   }
-}
+  setTimeout(() => {
+    symbols[symbol]['trade pending'] = false;
+  }, 10000);
+  }
 
 function calculateEMA(arr) {
-  arr = arr.slice(-576).reverse(); //576 5-minute datapoints is 3 days
+  arr = arr.slice(-144).reverse(); //144 5-minute datapoints is 14hrs
 
   const k = 2 / (arr.length + 1); // Think kraken uses approximately  0.125 for ema calculations?
   let ema = arr[0];
@@ -95,16 +105,17 @@ function updateAllEMAs() {
     });
 }
 
-function evaluateTradeWithEMA(symbol, ask) {
+function evaluateTradeWithEMA(symbol, ask) {  
   if (symbols[symbol].EMA !== undefined) {
-    if (symbols[symbol].holding){
+    if (symbols[symbol].holding > 0.000001){
       if (ask < symbols[symbol].EMA){
         trade(symbol, ask, 'sell')
       }
     }else{
+      console.log(symbols[symbol], ask);
       if (ask > symbols[symbol].EMA){
         trade(symbol, ask, 'buy')
-        }
+      }
     }
   }
 }
@@ -125,28 +136,50 @@ wsManager.on('update', (data) => {
   // console.log(`Updated ${data.symbol}:`, symbols[data.symbol], data.ask);
 });
 
-function start() {
-  fileManager.loadObjects()
-  .then(function({ symbolsObj, subscribersObj }) {
+async function updateBalance() {
+  const { balance } = await KRKN_REST.getAccountBalance();
+    // console.log(`balance: ${JSON.stringify(balance)}`);
+
+    Object.keys(symbols).forEach(key => {
+      const symbol = symbols[key];
+      const currencyCode = symbol["currency code"];
+      if (balance[currencyCode]) {
+        const amount = parseFloat(balance[currencyCode]);
+          symbol.holding = amount;
+      }
+    });
+    // console.log(symbols);
+}
+
+async function start() {
+  try {
+    const { symbolsObj, subscribersObj } = await fileManager.loadObjects();
     symbols = symbolsObj;
     telegramBot.subscribersObj = subscribersObj;
-  })
-  .then(function () {
-    fileManager.emptyLogFile();
-    // KRKN_REST.getAccountBalance()
-    // .then(function({ balance }) {
-    //   console.log(`balance: ${JSON.stringify(balance)}`);
-    // })
+
+    await fileManager.emptyLogFile();
+
+    await updateBalance()
+
     updateAllEMAs();
     setInterval(updateAllEMAs, 5*60*1000) // Call every 5 minutes (3000 000 milliseconds )
-  })
-  .then(function () {
+
     wsManager.connectWebSocket(symbols);
     telegramBot.messageSubscribers('Script initialized and running...')
     fileManager.writeToLogFile('Script initialized and running...');
-  })
-  .catch(function(err) {
-    console.error('Error loading objects:', err);
-  });
+  } catch (error) {
+    console.log(error); 
+  }
 }
 start();
+
+process.on('SIGINT', () => {
+  console.log('Caught interrupt signal (Ctrl+C). Performing cleanup...');
+
+  // fileManager.saveObjects(symbols, telegramBot.subscribersObj)
+  wsManager.disconnect();
+  fileManager.writeToLogFile('Program terminated by user (Ctrl+C).');
+  telegramBot.messageSubscribers('Script shutting down...');
+
+  process.exit(0);
+});

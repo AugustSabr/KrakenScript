@@ -2,70 +2,80 @@
   "BTC": {
     "name": "Bitcoin",
     "currency code": "XXBT",
-    "holding": false,
+    "holding": 0,
+    "trade pending": false,
     "EMA": null,
     "24h change": null
   },
   "ETH": {
     "name": "Ethereum",
     "currency code": "XETH",
-    "holding": false,
+    "holding": 0,
+    "trade pending": false,
     "EMA": null,
     "24h change": null
   },
   "XRP": {
     "name": "Ripple",
     "currency code": "XXRP",
-    "holding": false,
+    "holding": 0,
+    "trade pending": false,
     "EMA": null,
     "24h change": null
   },
   "SOL": {
     "name": "Solana",
     "currency code": "SOL",
-    "holding": false,
+    "holding": 0,
+    "trade pending": false,
     "EMA": null,
     "24h change": null
   },
   "DOGE": {
     "name": "Dogecoin",
     "currency code": "XXDG",
-    "holding": false,
+    "holding": 0,
+    "trade pending": false,
     "EMA": null,
     "24h change": null
   },
   "ADA": {
     "name": "Cardano",
     "currency code": "ADA",
-    "holding": false,
+    "holding": 0,
+    "trade pending": false,
     "EMA": null,
     "24h change": null
   },
   "TRX": {
     "name": "Tron",
     "currency code": "TRX",
-    "holding": false,
+    "holding": 0,
+    "trade pending": false,
     "EMA": null,
     "24h change": null
   },
   "LINK": {
     "name": "Chainlink",
     "currency code": "LINK",
-    "holding": false,
+    "holding": 0,
+    "trade pending": false,
     "EMA": null,
     "24h change": null
   },
   "AVAX": {
     "name": "Avalanche",
     "currency code": "AVAX",
-    "holding": false,
+    "holding": 0,
+    "trade pending": false,
     "EMA": null,
     "24h change": null
   },
   "DOT": {
     "name": "Polkadot",
     "currency code": "DOT",
-    "holding": false,
+    "holding": 0,
+    "trade pending": false,
     "EMA": null,
     "24h change": null
   }

@@ -2,6 +2,7 @@ require('dotenv').config({ path: './keys.env' });
 const https = require('https');
 const crypto = require('crypto');
 const fileManager = require('../fileManager');
+const { addWatchlist } = require('@alpacahq/alpaca-trade-api/dist/resources/watchlist');
 
 // Load environment variables
 const KRKN_REST_URL = 'api.kraken.com';
@@ -18,7 +19,21 @@ const getNonce = () => {
   return nonce++; // Increment the nonce with each request
 };
 
-module.exports = {getOHLCData, getAccountBalance}
+module.exports = {getOHLCData, getAccountBalance, AddOrder, makeRequestWithRetry}
+
+async function makeRequestWithRetry(apiCall, retries = 3) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+          return await apiCall;
+      } catch (error) {
+          if (error.message.includes('EAPI:Invalid nonce') && attempt < retries) {
+              console.log(`Retrying due to nonce error. Attempt ${attempt}...`);
+              continue; // Retry with a new nonce
+          }
+          throw error; // Other errors or retries exhausted
+      }
+  }
+}
 
 // Funksjon for å hente OHLC data fra Kraken REST API
 function getOHLCData(symbol, interval = 1) {
@@ -60,9 +75,7 @@ function getOHLCData(symbol, interval = 1) {
 function getAccountBalance() {
   return new Promise((resolve, reject) => {
     const nonce = getNonce();
-    console.log(nonce);
-    
-    
+    // console.log(nonce);
     const postData = JSON.stringify({ nonce });
 
     // Generate the signature
@@ -127,9 +140,10 @@ function AddOrder(currencyCode, action, price, volume, id) {
       "ordertype": "limit",
       "type": action,
       "volume": volume,
-      "pair": currencyCode,
+      "pair": currencyCode+'/USD',
       "price": price,
-      "cl_ord_id": id
+      "cl_ord_id": id,
+      "expiretm": '+10'
     });
 
     // Generate the signature
@@ -160,20 +174,20 @@ function AddOrder(currencyCode, action, price, volume, id) {
         try {
           const json = JSON.parse(body);
           if (json.error && json.error.length) {
-            console.error('Error:', json.error);
+            resolve({ success: false, error: json.error });
             reject(json.error);
           } else {
-            resolve(json.result);
+            resolve({ success: true, result: json.result });
           }
         } catch (err) {
           console.error('JSON Parse Error:', err);
-          reject(err);
+          resolve({ success: false, error: 'JSON Parse Error' });
         }
       });
 
       res.on('error', (error) => {
         console.error('Request Error:', error);
-        reject(error);
+        resolve({ success: false, error: 'Request Error' });
       });
     });
 
