@@ -21,18 +21,22 @@ const getNonce = () => {
 
 module.exports = {getOHLCData, getAccountBalance, AddOrder, makeRequestWithRetry}
 
-async function makeRequestWithRetry(apiCall, retries = 3) {
+async function makeRequestWithRetry(apiCall, retries = 3, delay = 1000) {
   for (let attempt = 1; attempt <= retries; attempt++) {
-      try {
-          return await apiCall;
-      } catch (error) {
-          if (error.message.includes('EAPI:Invalid nonce') && attempt < retries) {
-              console.log(`Retrying due to nonce error. Attempt ${attempt}...`);
-              continue; // Retry with a new nonce
-          }
-          throw error; // Other errors or retries exhausted
+    try {
+      return await apiCall;
+    } catch (error) {
+      if ((error.message.includes('EAPI:Invalid nonce') || error.message.includes('EAPI:Rate limit exceeded'))&& attempt < retries) {
+        console.log(`Retrying due to error: ${error.message}. Attempt ${attempt}...`);
+        await new Promise(resolve => setTimeout(resolve, delay * attempt));
+        continue;
+      } else if (error.message.includes('EService:Unavailable') || error.message.includes('EFunding:Insufficient funds')) {
+        return error.message
       }
+      console.error(`Request failed on attempt ${attempt}/${retries}:`, error);
+    }
   }
+  console.error('Max retries reached');
 }
 
 // Funksjon for å hente OHLC data fra Kraken REST API
@@ -174,20 +178,19 @@ function AddOrder(currencyCode, action, price, volume, id) {
         try {
           const json = JSON.parse(body);
           if (json.error && json.error.length) {
-            resolve({ success: false, error: json.error });
-            reject(json.error);
+            reject(new Error(json.error.join(', ')));
           } else {
-            resolve({ success: true, result: json.result });
+            resolve(json.result);
           }
         } catch (err) {
           console.error('JSON Parse Error:', err);
-          resolve({ success: false, error: 'JSON Parse Error' });
+          reject(new Error('JSON Parse Error'));
         }
       });
 
       res.on('error', (error) => {
         console.error('Request Error:', error);
-        resolve({ success: false, error: 'Request Error' });
+        reject(new Error('Request Error'));
       });
     });
 

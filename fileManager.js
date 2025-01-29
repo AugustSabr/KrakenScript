@@ -34,11 +34,20 @@ function objToJsonFile(jsonString, path) {
 function jsonFileToObj(path) {
   return fs.promises.readFile(path, 'utf8')
     .then(function(data) {
-      return JSON.parse(data);
+      try {
+        const parsedData = JSON.parse(data);
+        if (!parsedData || typeof parsedData !== 'object') {
+          throw new Error('Invalid JSON data');
+        }
+        return parsedData;
+      } catch (error) {
+        console.error('Error parsing JSON file:', error);
+        throw error;
+      }
     })
     .catch(function(err) {
       console.error('Error reading file:', err);
-      throw err;  // Reject with the error
+      throw err;
     });
 }
 

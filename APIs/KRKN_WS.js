@@ -10,6 +10,7 @@ class WebSocketManager extends EventEmitter {
     super();
     this.symbols = {};
     this.ws = null;
+    this.reconnectAttempts = 0
   }
 
 // Connect to the WebSocket API
@@ -21,6 +22,7 @@ class WebSocketManager extends EventEmitter {
     // Event: On connection open
     this.ws.on('open', () => {
         fileManager.writeToLogFile('Connected to WebSocket API v2');
+        this.reconnectAttempts = 0
         let symbolsKeys = Object.keys(symbols);
 
         const subscriptionMessage = {
@@ -65,18 +67,22 @@ class WebSocketManager extends EventEmitter {
 
     // Event: On connection close
     this.ws.on('close', (code, reason) => {
-        fileManager.writeToLogFile(`Connection closed: Code=${code}, Reason=${reason}`);
-        if (code !== 1000) { // Non-normal closure
-          setTimeout(() => {
-              console.log('Reconnecting...');
-              this.connectWebSocket(this.symbols);  // Attempt reconnection
-          }, 5000); // Try reconnecting after 5 seconds
+      fileManager.writeToLogFile(`Connection closed: Code=${code}, Reason=${reason}`);
+      if (code !== 1000) { // Non-normal closure
+        const delay = Math.min(30000, 5000 * Math.pow(2, this.reconnectAttempts)); // Exponential backoff with a cap
+        setTimeout(() => {
+          console.log('Reconnecting...');
+          this.reconnectAttempts++;
+          this.connectWebSocket(this.symbols);  // Attempt reconnection
+        }, delay);
       }
     });
 
     // Event: On error
     this.ws.on('error', (error) => {
-        console.error('WebSocket error:', error);
+      console.error('WebSocket error:', error);
+      this.reconnectAttempts++;
+      this.connectWebSocket(this.symbols);  // Attempt reconnection on error
     });
   }
 

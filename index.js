@@ -27,44 +27,42 @@ function getAvailableUSD() {
   });
 }
 
-
-function trade(symbol, ask, action) {  
-  if (symbols[symbol]['trade pending']) {
-    console.log(`Trade for ${symbol} is locked. Skipping...`);
-    return;
-  }
-  symbols[symbol]['trade pending'] = true;
-  const cl_ord_id = uuidv4(); // if i later want to add the possibility to track the order
-
-  if (action == 'buy') {
-    getAvailableUSD()
-    .then(function(availableUSD) {
-      console.log(symbols[symbol]['currency code'], action, ask, availableUSD/ask, cl_ord_id);
-      KRKN_REST.makeRequestWithRetry(KRKN_REST.AddOrder(symbol, action, ask, availableUSD/ask, cl_ord_id))
-      // KRKN_REST.makeRequestWithRetry(KRKN_REST.AddOrder(symbol, action, ask, 2, cl_ord_id))
-      .then(function(result) {
+  async function trade(symbol, ask, action) {
+    if (symbols[symbol]['trade pending']) {
+      console.log(`Trade for ${symbol} is locked. Skipping...`);
+      return;
+    }
+    symbols[symbol]['trade pending'] = true;
+    const cl_ord_id = uuidv4();
+  
+    try {
+      if (action === 'buy') {
+        const availableUSD = await getAvailableUSD();
+        console.log(symbols[symbol]['currency code'], action, ask, availableUSD / ask, cl_ord_id);
+        const result = await KRKN_REST.makeRequestWithRetry(KRKN_REST.AddOrder(symbol, action, ask, availableUSD / ask, cl_ord_id));
         console.log(result);
-        telegramBot.messageSubscribers(`bought ${symbol} for ${ask}$`)
-        fileManager.writeToLogFile(`bought ${symbol} for ${ask}$`)
-        updateBalance()
-      });
-    });
-  } else if (action == 'sell'){
-    KRKN_REST.makeRequestWithRetry(KRKN_REST.AddOrder(symbol, action, ask, symbols[symbol].holding, cl_ord_id))
-      .then(function(result) {
+        telegramBot.messageSubscribers(`bought ${symbol} for ${ask}$`);
+        fileManager.writeToLogFile(`bought ${symbol} for ${ask}$`);
+        await updateBalance();
+      } else if (action === 'sell') {
+        const result = await KRKN_REST.makeRequestWithRetry(KRKN_REST.AddOrder(symbol, action, ask, symbols[symbol].holding, cl_ord_id));
         console.log(result);
-        telegramBot.messageSubscribers(`sold ${symbol} for ${ask}$`)
-        fileManager.writeToLogFile(`sold ${symbol} for ${ask}$`)
-        updateBalance()
-
-      });
-} else {
-    fileManager.writeToLogFile(`Unrecognized action in trade() function: ${action}`);
-    telegramBot.messageMe('something wrong in the trade() function')
-  }
-  setTimeout(() => {
-    symbols[symbol]['trade pending'] = false;
-  }, 10000);
+        telegramBot.messageSubscribers(`sold ${symbol} for ${ask}$`);
+        fileManager.writeToLogFile(`sold ${symbol} for ${ask}$`);
+        await updateBalance();
+      } else {
+        fileManager.writeToLogFile(`Unrecognized action in trade() function: ${action}`);
+        telegramBot.messageMe('something wrong in the trade() function');
+      }
+    } catch (error) {
+      console.error('Trade execution error:', error);
+      telegramBot.messageMe(`Trade execution error for ${symbol}: ${error.message}`);
+      fileManager.writeToLogFile(`Trade execution error for ${symbol}: ${error.message}`);
+    } finally {
+      setTimeout(() => {
+        symbols[symbol]['trade pending'] = false;
+      }, 10000);
+    }
   }
 
 function calculateEMA(arr) {
@@ -104,31 +102,32 @@ function updateAllEMAs() {
       console.error('Error in Promise.all:', err);
     });
 }
-
+let lastCallTime = 0;
 function evaluateTradeWithEMA(symbol, ask) {  
   if (symbols[symbol].EMA !== undefined) {
     if (symbols[symbol].holding > 0.000001){
       if (ask < symbols[symbol].EMA){
+        const currentTime = Date.now();
+        if (currentTime - lastCallTime < 100) return;
+        lastCallTime = currentTime;
         trade(symbol, ask, 'sell')
       }
     }else{
       console.log(symbols[symbol], ask);
       if (ask > symbols[symbol].EMA){
+        const currentTime = Date.now();
+        if (currentTime - lastCallTime < 100) return;
+        lastCallTime = currentTime;
         trade(symbol, ask, 'buy')
       }
     }
   }
 }
 
-let lastCallTime = 0;
+
 wsManager.on('update', (data) => {
   // console.log('Received update:', data);
   symbols[data.symbol]['24h change'] = data.change_pct;
-  
-  const currentTime = Date.now();
-  if (currentTime - lastCallTime < 100) return;
-  lastCallTime = currentTime;
-
   // fileManager.writeToLogFile(`${data.symbol} ask: ${data.ask} ema: ${symbols[data.symbol].EMA}`);
   evaluateTradeWithEMA(data.symbol, data.ask);
   // evaluateTradeWithEMA(data.symbol, 5);
