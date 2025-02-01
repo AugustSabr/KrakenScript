@@ -9,29 +9,29 @@ function saveObjects(symbolsObj, subscribersObj) {
   objToJsonFile(JSON.stringify(subscribersObj, null, 2), `./data/subscribers.json`);
 }
 
-function loadObjects() {
-  return Promise.all([
-    jsonFileToObj(`./data/marketData.json`),
-    jsonFileToObj(`./data/subscribers.json`),
-  ])
-    .then(function([obj1, obj2]) {
-      return { symbolsObj: obj1, subscribersObj: obj2 };
-    })
-    .catch(function(err) {
-      console.error('Error loading objects:', err);
-      throw err;  // Rethrow the error to allow the caller to handle it
-    });
+async function loadObjects() {
+  try {
+    const [obj1, obj2] = await Promise.all([
+      jsonFileToObj(`./data/marketData.json`),
+      jsonFileToObj(`./data/subscribers.json`),
+    ]);
+    return { symbolsObj: obj1, subscribersObj: obj2 };
+  } catch (err) {
+    console.error('Error loading objects:', err);
+    throw err; // Rethrow the error to allow the caller to handle it
+  }
 }
 
-function objToJsonFile(jsonString, path) {
-  return fs.promises.writeFile(path, jsonString)
-    .catch(function(err) {
-      console.error('Error writing file:', err);
-      throw err;  // Reject with the error
-    });
+async function loadObjects(jsonString, path) {
+  try {
+    return await fs.promises.writeFile(path, jsonString);
+  } catch (err) {
+    console.error('Error writing file:', err);
+    throw err; // Reject with the error
+  }
 }
 
-function jsonFileToObj(path) {
+async function jsonFileToObj(path) {
   return fs.promises.readFile(path, 'utf8')
     .then(function(data) {
       try {

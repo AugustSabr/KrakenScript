@@ -21,31 +21,44 @@ const getNonce = () => {
 
 module.exports = {getOHLCData, getAccountBalance, AddOrder, makeRequestWithRetry}
 
-async function makeRequestWithRetry(apiCall, retries = 3, delay = 1000) {
+async function consider(apiCall, retries = 3, delay = 1000) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       return await apiCall;
     } catch (error) {
-      if ((error.message.includes('EAPI:Invalid nonce') || error.message.includes('EAPI:Rate limit exceeded'))&& attempt < retries) {
+      const isRetryableError = error.message.includes('EAPI:Invalid nonce') || 
+                              error.message.includes('EAPI:Rate limit exceeded');
+      const isTerminalError = error.message.includes('EService:Unavailable') || 
+                              error.message.includes('EFunding:Insufficient funds');
+
+      // Immediate notification for terminal errors
+      if (isTerminalError) {
+        telegramBot.messageMe(`API Terminal Error: ${error.message}`);
+        return Promise.reject(error); // Reject immediately
+      }
+
+      // Retry logic
+      if (isRetryableError && attempt < retries) {
         console.log(`Retrying due to error: ${error.message}. Attempt ${attempt}...`);
         await new Promise(resolve => setTimeout(resolve, delay * attempt));
         continue;
-      } else if (error.message.includes('EService:Unavailable') || error.message.includes('EFunding:Insufficient funds')) {
-        return error.message
       }
-      console.error(`Request failed on attempt ${attempt}/${retries}:`, error);
+
+      telegramBot.messageMe(`API Request Failed after ${retries} attempts: ${error.message}`);
+      return Promise.reject(error);
     }
   }
-  console.error('Max retries reached');
+  // This line is theoretically unreachable but safeguards against edge cases
+  return Promise.reject(new Error('Max retries reached unexpectedly'));
 }
 
 // Funksjon for å hente OHLC data fra Kraken REST API
-function getOHLCData(symbol, interval = 1) {
+function getOHLCData(ohlcPair, interval = 1) {
   return new Promise((resolve, reject) => {
     const options = {
       method: 'GET',
       hostname: KRKN_REST_URL,
-      path: `/0/public/OHLC?pair=${symbol + '/USD'}&interval=${interval}&since=${Math.floor(Date.now() / 1000)- (15 * 24 * 60 * 60)}`
+      path: `/0/public/OHLC?pair=${ohlcPair}&interval=${interval}&since=${Math.floor(Date.now() / 1000)- (15 * 24 * 60 * 60)}`
     };
 
     https.get(options, (res) => {
@@ -59,19 +72,21 @@ function getOHLCData(symbol, interval = 1) {
         try {
           const parsedData = JSON.parse(data);
           if (parsedData.error && parsedData.error.length > 0) {
-            throw new Error('Error from Kraken API: ' + parsedData.error.join(', '));
+            reject(new Error('Error from Kraken API: ' + parsedData.error.join(', ')));
           }
 
-          const openPrices = parsedData.result[Object.keys(parsedData.result)[0]].map(item => item[4]);
-          // console.log(symbol, 'Closing Prices:', interval, openPrices.reverse().slice(0, 50));
+          const closePrices = parsedData.result[Object.keys(parsedData.result)[0]].map(item => item[4]).reverse(); // reversed becuse i get the oldest data first
+          // console.log(ohlcPair, 'Closing Prices:', interval, closePrices.reverse().slice(0, 50));
           // console.log('OHLC Data:', parsedData.result);
-          resolve(openPrices);
+          resolve(closePrices);
         } catch (error) {
           console.error('Error parsing OHLC data:', error);
+          reject(error)
         }
       });
     }).on('error', (err) => {
       console.error('Request error:', err);
+      reject(err)
     });
   });
 }
@@ -135,7 +150,6 @@ function getAccountBalance() {
 
 function AddOrder(currencyCode, action, price, volume, id) {
   return new Promise((resolve, reject) => {
-
     
     const nonce = getNonce();
 
@@ -144,7 +158,7 @@ function AddOrder(currencyCode, action, price, volume, id) {
       "ordertype": "limit",
       "type": action,
       "volume": volume,
-      "pair": currencyCode+'/USD',
+      "pair": currencyCode,
       "price": price,
       "cl_ord_id": id,
       "expiretm": '+10'

@@ -1,82 +1,122 @@
 {
   "BTC": {
     "name": "Bitcoin",
-    "currency code": "XXBT",
+    "currency code": {
+      "accountBalance": "XXBT",
+      "OHLC": "XXBTZUSD",
+      "AddOrder": "XBTUSD"
+    },
     "holding": 0,
     "trade pending": false,
-    "EMA": null,
+    "EMA": { "fastEMA": null, "slowEMA": null, "prevFastEMA": null, "prevSlowEMA ": null },
     "24h change": null
   },
   "ETH": {
     "name": "Ethereum",
-    "currency code": "XETH",
+    "currency code": {
+      "accountBalance": "XETH",
+      "OHLC": "XETHZUSD",
+      "AddOrder": "ETHUSD"
+    },
     "holding": 0,
     "trade pending": false,
-    "EMA": null,
+    "EMA": { "fastEMA": null, "slowEMA": null, "oldfast": null, "oldslow": null },
     "24h change": null
   },
   "XRP": {
     "name": "Ripple",
-    "currency code": "XXRP",
+    "currency code": {
+      "accountBalance": "XXRP",
+      "OHLC": "XXRPZUSD",
+      "AddOrder": "XRPUSD"
+    },
     "holding": 0,
     "trade pending": false,
-    "EMA": null,
+    "EMA": { "fastEMA": null, "slowEMA": null, "oldfast": null, "oldslow": null },
     "24h change": null
   },
   "SOL": {
     "name": "Solana",
-    "currency code": "SOL",
+    "currency code": {
+      "accountBalance": "SOL",
+      "OHLC": "SOLUSD",
+      "AddOrder": "SOLUSD"
+    },
     "holding": 0,
     "trade pending": false,
-    "EMA": null,
+    "EMA": { "fastEMA": null, "slowEMA": null, "oldfast": null, "oldslow": null },
     "24h change": null
   },
   "DOGE": {
     "name": "Dogecoin",
-    "currency code": "XXDG",
+    "currency code": {
+      "accountBalance": "XXDG",
+      "OHLC": "XDGUSD",
+      "AddOrder": "XDGUSD"
+    },
     "holding": 0,
     "trade pending": false,
-    "EMA": null,
+    "EMA": { "fastEMA": null, "slowEMA": null, "oldfast": null, "oldslow": null },
     "24h change": null
   },
   "ADA": {
     "name": "Cardano",
-    "currency code": "ADA",
+    "currency code": {
+      "accountBalance": "ADA",
+      "OHLC": "ADAUSD",
+      "AddOrder": "ADAUSD"
+    },
     "holding": 0,
     "trade pending": false,
-    "EMA": null,
+    "EMA": { "fastEMA": null, "slowEMA": null, "oldfast": null, "oldslow": null },
     "24h change": null
   },
   "TRX": {
     "name": "Tron",
-    "currency code": "TRX",
+    "currency code": {
+      "accountBalance": "TRX",
+      "OHLC": "TRXUSD",
+      "AddOrder": "TRXUSD"
+    },
     "holding": 0,
     "trade pending": false,
-    "EMA": null,
+    "EMA": { "fastEMA": null, "slowEMA": null, "oldfast": null, "oldslow": null },
     "24h change": null
   },
   "LINK": {
     "name": "Chainlink",
-    "currency code": "LINK",
+    "currency code": {
+      "accountBalance": "LINK",
+      "OHLC": "LINKUSD",
+      "AddOrder": "LINKUSD"
+    },
     "holding": 0,
     "trade pending": false,
-    "EMA": null,
+    "EMA": { "fastEMA": null, "slowEMA": null, "oldfast": null, "oldslow": null },
     "24h change": null
   },
   "AVAX": {
     "name": "Avalanche",
-    "currency code": "AVAX",
+    "currency code": {
+      "accountBalance": "AVAX",
+      "OHLC": "AVAXUSD",
+      "AddOrder": "AVAXUSD"
+    },
     "holding": 0,
     "trade pending": false,
-    "EMA": null,
+    "EMA": { "fastEMA": null, "slowEMA": null, "oldfast": null, "oldslow": null },
     "24h change": null
   },
   "DOT": {
     "name": "Polkadot",
-    "currency code": "DOT",
+    "currency code": {
+      "accountBalance": "DOT",
+      "OHLC": "DOTUSD",
+      "AddOrder": "DOTUSD"
+    },
     "holding": 0,
     "trade pending": false,
-    "EMA": null,
+    "EMA": { "fastEMA": null, "slowEMA": null, "oldfast": null, "oldslow": null },
     "24h change": null
   }
 }

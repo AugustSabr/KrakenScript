@@ -23,13 +23,20 @@ class WebSocketManager extends EventEmitter {
     this.ws.on('open', () => {
         fileManager.writeToLogFile('Connected to WebSocket API v2');
         this.reconnectAttempts = 0
-        let symbolsKeys = Object.keys(symbols);
+
+        const formatTickerForWebSocket = (addOrderCode) => 
+          `${addOrderCode.slice(0, -3)}/USD`;
+        
+        // Create array of WebSocket ticker codes
+        const wsTickers = Object.values(symbols).map(asset => 
+          formatTickerForWebSocket(asset["currency code"].AddOrder)
+        );
 
         const subscriptionMessage = {
           method: 'subscribe',
           params: {
               channel: 'ticker',
-              symbol: symbolsKeys.map(symbolsKeys => symbolsKeys + '/USD'), // BTC => BTC/USD
+              symbol: wsTickers,
               event_trigger: 'trades'
           }
         };
@@ -38,28 +45,29 @@ class WebSocketManager extends EventEmitter {
         fileManager.writeToLogFile(`Subscription message sent: ${JSON.stringify(subscriptionMessage)}`);
     });
 
+    this.ws.on('ping', () => this.ws.pong());
+    
     // Event: On receiving a message
     this.ws.on('message', (data) => {
         try {            
             const parsedData = JSON.parse(data);
-            // console.log('Received message: ', parsedData);
+            console.log('Received message: ', parsedData);
 
             if (parsedData.error) {
-              throw new Error('Message contains an error: ' + parsedData.error);
+              reject(new Error('Message contains an error: ' + parsedData.error));
             }
 
             // If the message doesn't match condition, discard it
             if (parsedData.channel !== 'ticker') {
               return;
-            }            
-            const symbol = parsedData.data[0].symbol.split('/')[0];
+            }
+            let symbol = parsedData.data[0].symbol
+
+            if (symbol.includes("/")) {
+              symbol = symbol.split('/')[0];
+            }
             
-            this.symbols[symbol]["24h change"] = parsedData.data[0].change_pct;
-
-            this.emit('update', {symbol, ask: parsedData.data[0].ask, change_pct: parsedData.data[0].change_pct});
-
-            // console.log('Update received:', symbol, parsedData.data[0].bid, parsedData.data[0].ask, symbol, parsedData.data[0].change_pct);
-            // evaluateTradeWithEMA(symbol, parsedData.data[0].ask);
+            this.emit('update', {symbol, bid: parsedData.data[0].bid, ask: parsedData.data[0].ask, change_pct: parsedData.data[0].change_pct});
         } catch (error) {
             console.error('Error on receiving a message:\n', error);
         }
@@ -81,6 +89,8 @@ class WebSocketManager extends EventEmitter {
     // Event: On error
     this.ws.on('error', (error) => {
       console.error('WebSocket error:', error);
+      fileManager.writeToLogFile(`WebSocket Error: ${error.message}`);
+      telegramBot.messageMe(`WebSocket Error: ${error.message}`);
       this.reconnectAttempts++;
       this.connectWebSocket(this.symbols);  // Attempt reconnection on error
     });
